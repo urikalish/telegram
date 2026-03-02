@@ -8,9 +8,9 @@ const CHAT_ID = process.env.CHAT_ID;
 if (!BOT_TOKEN) throw new Error('Missing essential environment variable: BOT_TOKEN');
 if (!CHAT_ID) throw new Error('Missing essential environment variable: CHAT_ID');
 
-const ROOT_COMMANDS = `/help - lists all available commands.
-/time - lists current time on bot server.
-/deni - watch Deni Avdija's status.`;
+const ROOT_COMMANDS = `/help - List all bot commands.
+/time - Get current bot time.
+/deni - Report Deni's status.`;
 
 const bot = new Telegraf(BOT_TOKEN);
 
@@ -79,32 +79,32 @@ async function watchDeniStatus(ctx) {
     }, 5 * 60 * 1000);
 }
 
-bot.command('status', async (ctx) => {
+bot.command('deni_status', async (ctx) => {
     console.log(`Running status command`);
     const result = await fetchDeniStatus();
     ctx.reply(result);
 });
 
-bot.command('start', async (ctx) => {
+bot.command('deni_start', async (ctx) => {
     console.log(`Running start command`);
-    ctx.reply(`start watching Deni's status...`);
+    ctx.reply(`Start watching Deni's status...`);
     lastReportedDeniStatus = '';
     clearTimeout(deniStatusWatchTimerId);
     watchDeniStatus(ctx).catch(console.error);
 });
 
-bot.command('stop', async (ctx) => {
+bot.command('deni_stop', async (ctx) => {
     console.log(`Running stop command`);
-    ctx.reply(`stop watching Deni's status.`);
+    ctx.reply(`Stop watching Deni's status.`);
     lastReportedDeniStatus = '';
     clearTimeout(deniStatusWatchTimerId);
 });
 
 bot.command('deni', async (ctx) => {
     const AVDIJA_COMMANDS =
-`/status - reports Deni Avdija's status.
-/start - start watching Deni Avdija's status.
-/stop - stop watching Deni Avdija's status.`;
+`/deni_status - reports Deni Avdija's status.
+/deni_start - start watching Deni Avdija's status.
+/deni_stop - stop watching Deni Avdija's status.`;
     ctx.reply(AVDIJA_COMMANDS);
 });
 
