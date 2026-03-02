@@ -17,13 +17,17 @@ export class TimeService {
 
     async handleTime(ctx) {
         console.log(`Running time command`);
-        const now = new Date();
         const options = {
-            day: '2-digit', month: '2-digit', year: '2-digit',
-            hour: '2-digit', minute: '2-digit', second: '2-digit',
-            hour12: false
+            timeZone: "Asia/Jerusalem",
+            weekday: "long",    // "Thursday"
+            day: "2-digit",      // "05"
+            month: "2-digit",    // "03"
+            year: "2-digit",     // "26"
+            hour: "2-digit",     // "03"
+            minute: "2-digit",   // "00"
+            hour12: false        // 24-hour format
         };
-        const timeStr = new Intl.DateTimeFormat('en-GB', options).format(now);
+        const timeStr = new Intl.DateTimeFormat('en-GB', options).format(new Date());
         const result = `Current time on bot server: ${timeStr}`;
         console.log(result);
         ctx.reply(result);
