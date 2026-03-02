@@ -1,5 +1,3 @@
-import 'dotenv/config';
-
 export class TimeService {
     bot = null;
 

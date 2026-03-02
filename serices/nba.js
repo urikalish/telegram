@@ -1,6 +1,3 @@
-import 'dotenv/config';
-import * as cheerio from 'cheerio';
-
 export class NbaService {
     deniStatusWatchTimerId = 0;
     lastReportedDeniStatus = '';
@@ -34,7 +31,7 @@ export class NbaService {
 
     async handleNbaCommands(ctx) {
         const AVDIJA_COMMANDS =
-`/next_game - Blazers next game/
+`/next_game - Blazers' next game.
 /deni_status - reports Deni Avdija's status.
 /deni_start - start watching Deni Avdija's status.
 /deni_stop - stop watching Deni Avdija's status.`;
@@ -43,21 +40,35 @@ export class NbaService {
 
     async fetchNextGame() {
         console.log(`Fetching Next game...`);
-        let timeStr = '';
+        let gameInfo = '';
+        const url = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/por/schedule';
+
         try {
-            const url = `https://www.espn.com/nba/team/schedule/_/name/por/portland-trail-blazers`;
             const response = await fetch(url);
-            if (response.ok) {
-                const html = await response.text();
-                const $ = cheerio.load(html);
-                timeStr = $('tr.Table__TR:has(> td > a.Schedule__ticket)').first().text().trim();
-            } else {
-                console.error(response.statusText);
+            const data = await response.json();
+            const upcomingGames = data.events.filter(event =>
+                event.competitions[0].status.type.completed === false
+            );
+            const nextGame = upcomingGames[0];
+            if (nextGame) {
+                const utcDate = new Date(nextGame.date);
+                const options = {
+                    timeZone: "Asia/Jerusalem",
+                    weekday: "long",    // "Thursday"
+                    day: "2-digit",      // "05"
+                    month: "2-digit",    // "03"
+                    year: "2-digit",     // "26"
+                    hour: "2-digit",     // "03"
+                    minute: "2-digit",   // "00"
+                    hour12: false        // 24-hour format
+                };
+                const israelTime = utcDate.toLocaleString("en-GB", options);
+                gameInfo = `${nextGame.name}\n${israelTime}`;
             }
         } catch (error) {
-            console.error(error);
+            console.error("Error fetching schedule:", error);
         }
-        const result = timeStr ? `Next game: ${timeStr}` : `Unable to get next game time`;
+        const result = gameInfo ? `Next game:\n${gameInfo}` : `Unable to get next game`;
         console.log(result);
         return result;
     }
@@ -70,14 +81,18 @@ export class NbaService {
 
     async fetchDeniStatus() {
         console.log(`Fetching Deni Avdija's status...`);
+        const DENI_PLAYER_ID = 4683021;
         let status = '';
         try {
-            const url = `https://www.espn.com/nba/player/_/id/4683021/deni-avdija`;
+            const url = `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${DENI_PLAYER_ID}`;
             const response = await fetch(url);
             if (response.ok) {
-                const html = await response.text();
-                const $ = cheerio.load(html);
-                status = $('.TextStatus').first().text().trim();
+                const json = await response.json();
+                if (json.athlete.injuries) {
+                    status = json.athlete.injuries[0].details.fantasyStatus.description;
+                } else {
+                    status = 'OK';
+                }
             } else {
                 console.error(response.statusText);
             }
