@@ -8,21 +8,11 @@ export class NbaService {
     }
 
     init() {
-        this.bot.command('nba', async (ctx) => {
-            this.handleNbaCommands(ctx).catch(console.error);
-        });
-        this.bot.command('next_game', async (ctx) => {
-            this.handleNextGame(ctx).catch(console.error);
-        });
-        this.bot.command('deni_status', async (ctx) => {
-            this.handleDeniStatus(ctx).catch(console.error);
-        });
-        this.bot.command('deni_start', async (ctx) => {
-            this.handleDeniStart(ctx).catch(console.error);
-        });
-        this.bot.command('deni_stop', async (ctx) => {
-            this.handleDeniStop(ctx).catch(console.error);
-        });
+        this.bot.command('nba', (ctx) => this.handleNbaCommands(ctx));
+        this.bot.command('next_game', (ctx) => this.handleNextGame(ctx));
+        this.bot.command('deni_status', (ctx) => this.handleDeniStatus(ctx));
+        this.bot.command('deni_start', (ctx) => this.handleDeniStart(ctx));
+        this.bot.command('deni_stop', (ctx) => this.handleDeniStop(ctx));
     }
 
     getCommandList() {
@@ -46,8 +36,8 @@ export class NbaService {
         try {
             const response = await fetch(url);
             const data = await response.json();
-            const upcomingGames = data.events.filter(event =>
-                event.competitions[0].status.type.completed === false
+            const upcomingGames = data.events?.filter(event =>
+                event?.competitions?.[0]?.status?.type?.completed === false
             );
             const nextGame = upcomingGames[0];
             if (nextGame) {
@@ -80,26 +70,30 @@ export class NbaService {
     }
 
     async fetchDeniStatus() {
+        let result = '';
         console.log(`Fetching Deni Avdija's status...`);
         const DENI_PLAYER_ID = 4683021;
-        let status = '';
         try {
             const url = `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${DENI_PLAYER_ID}`;
             const response = await fetch(url);
             if (response.ok) {
                 const json = await response.json();
-                if (json.athlete.injuries) {
-                    status = json.athlete.injuries[0].details.fantasyStatus.description;
+                const injuries = json.athlete?.injuries;
+                if (injuries && injuries.length > 0) {
+                    const status = injuries[0]?.details?.fantasyStatus?.description;
+                    if (status) {
+                        result = status;
+                    }
                 } else {
-                    status = 'OK';
+                    result = `Deni's status: OK`;
                 }
             } else {
-                console.error(response.statusText);
+                console.error("Error fetching Deni status:", response.error);
             }
         } catch (error) {
-            console.error(error);
+            console.error("Error fetching Deni status:", error);
         }
-        const result = status ? `Deni's status: ${status}` : `Unable to get Deni's status`;
+        result = result || `Unable to get Deni's precise status details`;
         console.log(result);
         return result;
     }
@@ -110,29 +104,42 @@ export class NbaService {
         ctx.reply(result);
     }
 
-    async watchDeniStatus(ctx) {
+    async watchDeniStatus(chatId) {
         const result = await this.fetchDeniStatus();
         if (result !== this.lastReportedDeniStatus) {
-            ctx.reply(result);
             this.lastReportedDeniStatus = result;
+            await this.bot.telegram.sendMessage(chatId, result);
         }
         this.deniStatusWatchTimerId = setTimeout(() => {
-            this.watchDeniStatus(ctx).catch(console.error);
+            this.watchDeniStatus(chatId).catch(console.error);
         }, 5 * 60 * 1000);
     }
 
     async handleDeniStart(ctx) {
         console.log(`Running Deni start command`);
-        ctx.reply(`Start watching Deni's status...`);
+        const chatId = ctx.chat.id;
+        if (this.deniStatusWatchTimerId) {
+            return ctx.reply(`Already watching Deni's status.`);
+        }
+        const msg = `Started watching Deni's status...`;
+        console.log(msg);
+        ctx.reply(msg);
         this.lastReportedDeniStatus = '';
-        clearTimeout(this.deniStatusWatchTimerId);
-        this.watchDeniStatus(ctx).catch(console.error);
+        this.watchDeniStatus(chatId).catch(console.error);
     };
 
     async handleDeniStop(ctx){
         console.log(`Running Deni stop command`);
-        ctx.reply(`Stop watching Deni's status.`);
-        this.lastReportedDeniStatus = '';
-        clearTimeout(this.deniStatusWatchTimerId);
+        let msg;
+        if (this.deniStatusWatchTimerId) {
+            clearTimeout(this.deniStatusWatchTimerId);
+            this.deniStatusWatchTimerId = 0;
+            this.lastReportedDeniStatus = '';
+            msg = `Stopped watching Deni's status.`;
+        } else {
+            msg = `I wasn't watching Deni's status.`;
+        }
+        console.log(msg);
+        ctx.reply(msg);
     }
 }

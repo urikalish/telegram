@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Telegraf } from 'telegraf';
-import { TimeService } from './serices/time.js';
-import { NbaService } from './serices/nba.js';
+import { TimeService } from './services/time.js';
+import { NbaService } from './services/nba.js';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) throw new Error('Missing essential environment variable: BOT_TOKEN');
@@ -28,6 +28,6 @@ bot.command('help', (ctx) => {
     console.log(result);
     ctx.reply(result);
 });
-await bot.telegram.sendMessage(CHAT_ID, `/help - List all bot commands.`);
+//await bot.telegram.sendMessage(CHAT_ID, `/help - List all bot commands.`);
 console.log(`Bot initialized`);
 bot.launch().catch(console.error);
