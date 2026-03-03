@@ -14,7 +14,7 @@ export class DeniService {
     }
 
     getCommandList() {
-        return `/deni_status - reports Deni's status.
+        return `/deni_status - Deni's injury status.
 /deni_watch - start watching Deni's status.
 /deni_unwatch - stop watching Deni's status.`;
     }
