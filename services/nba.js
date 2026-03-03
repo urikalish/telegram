@@ -11,8 +11,8 @@ export class NbaService {
         this.bot.command('nba', (ctx) => this.handleNbaCommands(ctx));
         this.bot.command('next_game', (ctx) => this.handleNextGame(ctx));
         this.bot.command('deni_status', (ctx) => this.handleDeniStatus(ctx));
-        this.bot.command('deni_start', (ctx) => this.handleDeniStart(ctx));
-        this.bot.command('deni_stop', (ctx) => this.handleDeniStop(ctx));
+        this.bot.command('deni_watch', (ctx) => this.handleDeniStart(ctx));
+        this.bot.command('deni_unwatch', (ctx) => this.handleDeniStop(ctx));
     }
 
     getCommandList() {
@@ -23,8 +23,8 @@ export class NbaService {
         const AVDIJA_COMMANDS =
 `/next_game - Blazers' next game.
 /deni_status - reports Deni Avdija's status.
-/deni_start - start watching Deni Avdija's status.
-/deni_stop - stop watching Deni Avdija's status.`;
+/deni_watch - start watching Deni Avdija's status.
+/deni_unwatch - stop watching Deni Avdija's status.`;
         ctx.reply(AVDIJA_COMMANDS);
     }
 
@@ -116,10 +116,10 @@ export class NbaService {
     }
 
     async handleDeniStart(ctx) {
-        console.log(`Running Deni start command`);
+        console.log(`Running Deni watch command`);
         const chatId = ctx.chat.id;
         if (this.deniStatusWatchTimerId) {
-            return ctx.reply(`Already watching Deni's status.`);
+            return ctx.reply(`Already watching Deni's status`);
         }
         const msg = `Started watching Deni's status...`;
         console.log(msg);
@@ -129,15 +129,15 @@ export class NbaService {
     };
 
     async handleDeniStop(ctx){
-        console.log(`Running Deni stop command`);
+        console.log(`Running Deni unwatch command`);
         let msg;
         if (this.deniStatusWatchTimerId) {
             clearTimeout(this.deniStatusWatchTimerId);
             this.deniStatusWatchTimerId = 0;
             this.lastReportedDeniStatus = '';
-            msg = `Stopped watching Deni's status.`;
+            msg = `Stopped watching Deni's status`;
         } else {
-            msg = `I wasn't watching Deni's status.`;
+            msg = `I wasn't watching Deni's status`;
         }
         console.log(msg);
         ctx.reply(msg);
