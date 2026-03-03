@@ -1,4 +1,6 @@
 export class BlazersService {
+    deniStatusWatchTimerId = 0;
+    lastReportedDeniStatus = '';
     bot = null;
 
     constructor(bot) {
@@ -6,16 +8,48 @@ export class BlazersService {
     }
 
     init() {
+        console.log(`init`);
         this.bot.command('blazers_next_game', (ctx) => this.handleBlazersNextGame(ctx));
+        this.bot.command('deni_status', (ctx) => this.handleDeniStatus(ctx));
+        this.bot.command('deni_watch', (ctx) => this.handleDeniWatch(ctx));
+        this.bot.command('deni_unwatch', (ctx) => this.handleDeniUnwatch(ctx));
     }
 
     getCommandList() {
-        return `/blazers_next_game - Blazers' next game time.`;
+        console.log(`getCommandList`);
+        return `/blazers_next_game - Blazers' next game time.
+/deni_status - Deni's injury status.
+/deni_watch - start watching Deni's status.
+/deni_unwatch - stop watching Deni's status.`;
     }
 
-    async fetchNextGame() {
-        console.log(`Fetching Next game...`);
-        let gameInfo = '';
+    logAndReply(ctx, msg) {
+        console.log(msg);
+        ctx.reply(msg);
+    }
+
+    getTimeRemaining(futureDate) {
+        console.log(`getTimeRemaining`);
+        const now = new Date();
+        const differenceMs = futureDate - now;
+        if (differenceMs <= 0) {
+            return { days: 0, hours: 0, minutes: 0 };
+        }
+        const days = Math.floor(differenceMs / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((differenceMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((differenceMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { days, hours, minutes };
+    }
+
+    async fetchNextGameInfo() {
+        console.log(`fetchNextGameInfo`);
+        const nextGameInfo = {
+            name: '',
+            utcDateTime: null,
+            leftDays: 0,
+            leftHours: 0,
+            leftMinutes: 0,
+        };
         const url = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/por/schedule';
 
         try {
@@ -26,32 +60,128 @@ export class BlazersService {
             );
             const nextGame = upcomingGames[0];
             if (nextGame) {
-                const utcDate = new Date(nextGame.date);
-                const options = {
-                    timeZone: "Asia/Jerusalem",
-                    weekday: "long",    // "Thursday"
-                    day: "2-digit",      // "05"
-                    month: "2-digit",    // "03"
-                    year: "2-digit",     // "26"
-                    hour: "2-digit",     // "03"
-                    minute: "2-digit",   // "00"
-                    hour12: false        // 24-hour format
-                };
-                const israelTime = utcDate.toLocaleString("en-GB", options);
-                gameInfo = `${nextGame.name}\n${israelTime}`;
+                nextGameInfo.name = nextGame.name;
+                nextGameInfo.utcDateTime = new Date(nextGame.date);
+                const timeRemaining = this.getTimeRemaining(nextGameInfo.utcDateTime);
+                nextGameInfo.leftDays = timeRemaining.days;
+                nextGameInfo.leftHours = timeRemaining.hours;
+                nextGameInfo.leftMinutes = timeRemaining.minutes;
             }
         } catch (error) {
             console.error("Error fetching schedule:", error);
         }
-        const result = gameInfo ? `Next game:\n${gameInfo}` : `Unable to get next game`;
+        return nextGameInfo;
+    }
+
+    async handleBlazersNextGame(ctx) {
+        console.log(`handleBlazersNextGame`);
+        let msg;
+        const nextGameInfo = await this.fetchNextGameInfo();
+        if (nextGameInfo.name && nextGameInfo.utcDateTime) {
+            const options = {
+                timeZone: "Asia/Jerusalem",
+                weekday: "long",    // "Thursday"
+                day: "2-digit",      // "05"
+                month: "2-digit",    // "03"
+                year: "2-digit",     // "26"
+                hour: "2-digit",     // "03"
+                minute: "2-digit",   // "00"
+                hour12: false        // 24-hour format
+            };
+            const israelTime = nextGameInfo.utcDateTime.toLocaleString('en-GB', options);
+            let timeLeftStr = '';
+            if (nextGameInfo.leftDays > 0) {
+                timeLeftStr = `${nextGameInfo.leftDays} day(s) and ${nextGameInfo.leftHours} hour(s)`;
+            } else if (nextGameInfo.leftHours > 0) {
+                timeLeftStr = `${nextGameInfo.leftHours} hour(s) and ${nextGameInfo.leftMinutes} minute(s)`;
+            } else if (nextGameInfo.leftMinutes > 0) {
+                timeLeftStr = `${nextGameInfo.leftMinutes} minute(s)`;
+            }
+            msg = `Next Blazers game:\n${nextGameInfo.name}\n${israelTime}${timeLeftStr ? '\nin ' + timeLeftStr : ''}`;
+        } else {
+            msg =  `Unable to get next game info`;
+        }
+        this.logAndReply(ctx, msg);
+    }
+
+    async fetchDeniStatus() {
+        console.log(`fetchDeniStatus`);
+        let result = '';
+        const DENI_PLAYER_ID = 4683021;
+        try {
+            const url = `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${DENI_PLAYER_ID}`;
+            const response = await fetch(url);
+            if (response.ok) {
+                const json = await response.json();
+                const injuries = json.athlete?.injuries;
+                if (injuries && injuries.length > 0) {
+                    const status = injuries[0]?.details?.fantasyStatus?.description;
+                    if (status) {
+                        result = status;
+                    }
+                } else {
+                    result = `Deni's status: OK`;
+                }
+            } else {
+                console.error("Error fetching Deni status:", response.error);
+            }
+        } catch (error) {
+            console.error("Error fetching Deni status:", error);
+        }
+        result = result || `Unable to get Deni's precise status details`;
         console.log(result);
         return result;
     }
 
-    async handleBlazersNextGame(ctx) {
-        console.log(`Running next game command`);
-        const result = await this.fetchNextGame();
-        ctx.reply(result);
+    async handleDeniStatus(ctx) {
+        console.log(`handleDeniStatus`);
+        const msg = await this.fetchDeniStatus();
+        this.logAndReply(ctx, msg);
+    }
+
+    async watchDeniStatus(chatId) {
+        console.log(`watchDeniStatus`);
+        const result = await this.fetchDeniStatus();
+        if (result !== this.lastReportedDeniStatus) {
+            this.lastReportedDeniStatus = result;
+            await this.bot.telegram.sendMessage(chatId, result);
+        }
+        const nextGameInfo = await this.fetchNextGameInfo();
+        let refreshFreqMins = 60;
+        if (nextGameInfo.leftMinutes < 60) {
+            refreshFreqMins = 1;
+        } else if (nextGameInfo.leftMinutes < 180) {
+            refreshFreqMins = 5;
+        }
+        this.deniStatusWatchTimerId = setTimeout(() => {
+            this.watchDeniStatus(chatId).catch(console.error);
+        }, refreshFreqMins * 60 * 1000);
+    }
+
+    async handleDeniWatch(ctx) {
+        console.log(`handleDeniWatch`);
+        const chatId = ctx.chat.id;
+        if (this.deniStatusWatchTimerId) {
+            return ctx.reply(`Already watching Deni's status`);
+        }
+        const msg = `Started watching Deni's status...`;
+        this.logAndReply(ctx, msg);
+        this.lastReportedDeniStatus = '';
+        this.watchDeniStatus(chatId).catch(console.error);
+    };
+
+    async handleDeniUnwatch(ctx) {
+        console.log(`handleDeniUnwatch`);
+        let msg;
+        if (this.deniStatusWatchTimerId) {
+            clearTimeout(this.deniStatusWatchTimerId);
+            this.deniStatusWatchTimerId = 0;
+            this.lastReportedDeniStatus = '';
+            msg = `Stopped watching Deni's status`;
+        } else {
+            msg = `I wasn't watching Deni's status`;
+        }
+        this.logAndReply(ctx, msg);
     }
 
 }

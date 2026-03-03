@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { Telegraf } from 'telegraf';
 import { BlazersService } from './services/blazers.js';
-import { DeniService } from './services/deni.js';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) throw new Error('Missing essential environment variable: BOT_TOKEN');
@@ -11,8 +10,7 @@ if (!CHAT_ID) throw new Error('Missing essential environment variable: CHAT_ID')
 console.log(`Bot initializing...`);
 const bot = new Telegraf(BOT_TOKEN);
 const services = [
-    new BlazersService(bot),
-    new DeniService(bot)
+    new BlazersService(bot)
 ];
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
