@@ -10,7 +10,7 @@ export class BlazersService {
     }
 
     getCommandList() {
-        return `/blazers_next_game - Blazers' next game.`;
+        return `/blazers_next_game - Blazers' next game time.`;
     }
 
     async fetchNextGame() {

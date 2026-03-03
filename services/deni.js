@@ -14,9 +14,9 @@ export class DeniService {
     }
 
     getCommandList() {
-        return `/deni_status - reports Deni Avdija's status.
-/deni_watch - start watching Deni Avdija's status.
-/deni_unwatch - stop watching Deni Avdija's status.`;
+        return `/deni_status - reports Deni's status.
+/deni_watch - start watching Deni's status.
+/deni_unwatch - stop watching Deni's status.`;
     }
 
     async fetchDeniStatus() {
