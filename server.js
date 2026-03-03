@@ -18,7 +18,6 @@ services.forEach(s => {
     s.init();
 })
 bot.command('help', (ctx) => {
-    console.log(`Running help command`);
     let result = '';
     services.forEach(s => {
         result += s.getCommandList() + '\n';

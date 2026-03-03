@@ -7,29 +7,26 @@ export class BlazersService {
         this.bot = bot;
     }
 
-    init() {
-        console.log(`init`);
-        this.bot.command('blazers_next_game', (ctx) => this.handleBlazersNextGame(ctx));
-        this.bot.command('deni_status', (ctx) => this.handleDeniStatus(ctx));
-        this.bot.command('deni_watch', (ctx) => this.handleDeniWatch(ctx));
-        this.bot.command('deni_unwatch', (ctx) => this.handleDeniUnwatch(ctx));
-    }
-
-    getCommandList() {
-        console.log(`getCommandList`);
-        return `/blazers_next_game - Blazers' next game time.
-/deni_status - Deni's injury status.
-/deni_watch - start watching Deni's status.
-/deni_unwatch - stop watching Deni's status.`;
-    }
-
     logAndReply(ctx, msg) {
         console.log(msg);
         ctx.reply(msg);
     }
 
+    init() {
+        this.bot.command('blazers_next_game', (ctx) => this.handleBlazersNextGame(ctx));
+        this.bot.command('deni_status', (ctx) => this.handleDeniStatus(ctx));
+        this.bot.command('deni_watch', (ctx) => this.handleWatchDeni(ctx));
+        this.bot.command('deni_unwatch', (ctx) => this.handleUnwatchDeni(ctx));
+    }
+
+    getCommandList() {
+        return `/blazers_next_game - Blazers' next game info.
+/deni_status - Deni's injury status.
+/deni_watch - start watching Deni's status.
+/deni_unwatch - stop watching Deni's status.`;
+    }
+
     getTimeRemaining(futureDate) {
-        console.log(`getTimeRemaining`);
         const now = new Date();
         const differenceMs = futureDate - now;
         if (differenceMs <= 0) {
@@ -41,17 +38,30 @@ export class BlazersService {
         return { days, hours, minutes };
     }
 
+    getIsraelTimeStr(utcDate) {
+        const options = {
+            timeZone: "Asia/Jerusalem",
+            weekday: "long",    // "Thursday"
+            day: "2-digit",      // "05"
+            month: "2-digit",    // "03"
+            year: "2-digit",     // "26"
+            hour: "2-digit",     // "03"
+            minute: "2-digit",   // "00"
+            hour12: false        // 24-hour format
+        };
+        return utcDate.toLocaleString('en-GB', options);
+    }
+
     async fetchNextGameInfo() {
-        console.log(`fetchNextGameInfo`);
-        const nextGameInfo = {
+        const result = {
             name: '',
+            israelTimeStr: '',
             utcDateTime: null,
             leftDays: 0,
             leftHours: 0,
             leftMinutes: 0,
         };
         const url = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/por/schedule';
-
         try {
             const response = await fetch(url);
             const data = await response.json();
@@ -60,35 +70,25 @@ export class BlazersService {
             );
             const nextGame = upcomingGames[0];
             if (nextGame) {
-                nextGameInfo.name = nextGame.name;
-                nextGameInfo.utcDateTime = new Date(nextGame.date);
-                const timeRemaining = this.getTimeRemaining(nextGameInfo.utcDateTime);
-                nextGameInfo.leftDays = timeRemaining.days;
-                nextGameInfo.leftHours = timeRemaining.hours;
-                nextGameInfo.leftMinutes = timeRemaining.minutes;
+                result.name = nextGame.name;
+                result.utcDateTime = new Date(nextGame.date);
+                result.israelTimeStr = this.getIsraelTimeStr(result.utcDateTime);
+                const timeRemaining = this.getTimeRemaining(result.utcDateTime);
+                result.leftDays = timeRemaining.days;
+                result.leftHours = timeRemaining.hours;
+                result.leftMinutes = timeRemaining.minutes;
             }
         } catch (error) {
             console.error("Error fetching schedule:", error);
         }
-        return nextGameInfo;
+        console.log(`Next game info: ${JSON.stringify(result, null, 2)}`);
+        return result;
     }
 
     async handleBlazersNextGame(ctx) {
-        console.log(`handleBlazersNextGame`);
         let msg;
         const nextGameInfo = await this.fetchNextGameInfo();
         if (nextGameInfo.name && nextGameInfo.utcDateTime) {
-            const options = {
-                timeZone: "Asia/Jerusalem",
-                weekday: "long",    // "Thursday"
-                day: "2-digit",      // "05"
-                month: "2-digit",    // "03"
-                year: "2-digit",     // "26"
-                hour: "2-digit",     // "03"
-                minute: "2-digit",   // "00"
-                hour12: false        // 24-hour format
-            };
-            const israelTime = nextGameInfo.utcDateTime.toLocaleString('en-GB', options);
             let timeLeftStr = '';
             if (nextGameInfo.leftDays > 0) {
                 timeLeftStr = `${nextGameInfo.leftDays} day(s) and ${nextGameInfo.leftHours} hour(s)`;
@@ -97,7 +97,7 @@ export class BlazersService {
             } else if (nextGameInfo.leftMinutes > 0) {
                 timeLeftStr = `${nextGameInfo.leftMinutes} minute(s)`;
             }
-            msg = `Next Blazers game:\n${nextGameInfo.name}\n${israelTime}${timeLeftStr ? '\nin ' + timeLeftStr : ''}`;
+            msg = `Blazers' next game:\n${nextGameInfo.name}\n${nextGameInfo.israelTimeStr}${timeLeftStr ? '\nin ' + timeLeftStr : ''}`;
         } else {
             msg =  `Unable to get next game info`;
         }
@@ -105,7 +105,6 @@ export class BlazersService {
     }
 
     async fetchDeniStatus() {
-        console.log(`fetchDeniStatus`);
         let result = '';
         const DENI_PLAYER_ID = 4683021;
         try {
@@ -120,7 +119,7 @@ export class BlazersService {
                         result = status;
                     }
                 } else {
-                    result = `Deni's status: OK`;
+                    result = `OK`;
                 }
             } else {
                 console.error("Error fetching Deni status:", response.error);
@@ -128,27 +127,24 @@ export class BlazersService {
         } catch (error) {
             console.error("Error fetching Deni status:", error);
         }
-        result = result || `Unable to get Deni's precise status details`;
-        console.log(result);
+        console.log(`Deni's status: ${result}`);
         return result;
     }
 
     async handleDeniStatus(ctx) {
-        console.log(`handleDeniStatus`);
-        const msg = await this.fetchDeniStatus();
+        const msg = await this.fetchDeniStatus() || `Unable to get Deni's status`;
         this.logAndReply(ctx, msg);
     }
 
     async watchDeniStatus(chatId) {
-        console.log(`watchDeniStatus`);
-        const result = await this.fetchDeniStatus();
-        if (result !== this.lastReportedDeniStatus) {
-            this.lastReportedDeniStatus = result;
-            await this.bot.telegram.sendMessage(chatId, result);
+        const status = await this.fetchDeniStatus();
+        if (status !== this.lastReportedDeniStatus) {
+            this.lastReportedDeniStatus = status;
+            await this.bot.telegram.sendMessage(chatId, status || `Unable to get Deni's status`);
         }
         const nextGameInfo = await this.fetchNextGameInfo();
         let refreshFreqMins = 60;
-        if (nextGameInfo.leftMinutes < 60) {
+        if (nextGameInfo.leftMinutes < 90) {
             refreshFreqMins = 1;
         } else if (nextGameInfo.leftMinutes < 180) {
             refreshFreqMins = 5;
@@ -158,8 +154,7 @@ export class BlazersService {
         }, refreshFreqMins * 60 * 1000);
     }
 
-    async handleDeniWatch(ctx) {
-        console.log(`handleDeniWatch`);
+    async handleWatchDeni(ctx) {
         const chatId = ctx.chat.id;
         if (this.deniStatusWatchTimerId) {
             return ctx.reply(`Already watching Deni's status`);
@@ -170,8 +165,7 @@ export class BlazersService {
         this.watchDeniStatus(chatId).catch(console.error);
     };
 
-    async handleDeniUnwatch(ctx) {
-        console.log(`handleDeniUnwatch`);
+    async handleUnwatchDeni(ctx) {
         let msg;
         if (this.deniStatusWatchTimerId) {
             clearTimeout(this.deniStatusWatchTimerId);
