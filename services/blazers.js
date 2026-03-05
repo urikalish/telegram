@@ -144,10 +144,8 @@ export class BlazersService {
         }
         const nextGameInfo = await this.fetchNextGameInfo();
         let refreshFreqMins = 60;
-        if (nextGameInfo.leftMinutes < 90) {
-            refreshFreqMins = 1;
-        } else if (nextGameInfo.leftMinutes < 180) {
-            refreshFreqMins = 5;
+        if (nextGameInfo.leftDays === 0) {
+            refreshFreqMins = nextGameInfo.leftHours > 3 ? 10 : 1;
         }
         this.deniStatusWatchTimerId = setTimeout(() => {
             this.watchDeniStatus(chatId).catch(console.error);
