@@ -119,7 +119,7 @@ export class BlazersService {
                         result = status;
                     }
                 } else {
-                    result = `OK`;
+                    result = `ACT`;
                 }
             } else {
                 console.error("Error fetching Deni status:", response.error);
@@ -132,7 +132,8 @@ export class BlazersService {
     }
 
     async handleDeniStatus(ctx) {
-        const msg = await this.fetchDeniStatus() || `Unable to get Deni's status`;
+        const status = await this.fetchDeniStatus();
+        const msg = status ? `Deni's status: ${status}` : `Unable to get Deni's status`;
         this.logAndReply(ctx, msg);
     }
 
@@ -140,7 +141,7 @@ export class BlazersService {
         const status = await this.fetchDeniStatus();
         if (status !== this.lastReportedDeniStatus) {
             this.lastReportedDeniStatus = status;
-            await this.bot.telegram.sendMessage(chatId, status || `Unable to get Deni's status`);
+            await this.bot.telegram.sendMessage(chatId, `Deni's status: ${status}` || `Unable to get Deni's status`);
         }
         const nextGameInfo = await this.fetchNextGameInfo();
         let refreshFreqMins = 60;
